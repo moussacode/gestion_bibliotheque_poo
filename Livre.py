@@ -4,11 +4,17 @@ class Livre(Document):
     def __init__(self, titre,  auteur):
         super().__init__(titre)
         self.auteur = auteur  
+        self.type_doc = "Livre"
     
     def __str__(self):
         statut = "disponible" if self.est_disponible else "emprunte"
-        return f"Titre : {self.titre} |Auteur : {self.auteur} | Statut :  {statut}"
-    
+        return (
+            f"ID : {self.id_document} | "
+            f"Titre : {self.titre} | "
+            f"Auteur : {self.auteur} | "
+            f"Statut : {statut} | "
+            f"Type : {self.type_doc}"
+        )
     def marquer_emprunte(self):
         self.est_disponible = False
         print(f"Livre {self.titre} emprunter")

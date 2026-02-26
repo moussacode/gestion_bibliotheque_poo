@@ -4,8 +4,8 @@ from Magazine import Magazine
 
 class Menu:
 
-    def __init__(self):
-        self.bibliotheque = Bibliothecaire()
+    def __init__(self,db):
+        self.bibliotheque = Bibliothecaire(db)
 
     def saisir_texte(self, ecrire):
         while True:
@@ -55,9 +55,9 @@ class Menu:
                     self.bibliotheque.inscrire_membre(nom)
 
                 case "3":
-                    nom = self.saisir_texte("Veuillez entrer votre nom: ")
-                    titre = self.saisir_texte("Veuillez saisir le titre du document: ")
-                    self.bibliotheque.valider_pret(nom, titre)
+                    identifiant_adherent = self.saisir_texte("Veuillez entrer votre id: ")
+                    identifiant_livre = self.saisir_texte("Veuillez saisir le ID du document: ")
+                    self.bibliotheque.valider_pret(identifiant_adherent, identifiant_livre)
                 case "4":
                     self.bibliotheque.afficher_document()
                 case "5":
@@ -78,5 +78,6 @@ class Menu:
                     self.bibliotheque.recherche_document( titre)  
                 case "0":
                     print("Au revoir.") 
-                    exit()                
+
+                    exit()              
 

@@ -1,6 +1,9 @@
 from Menu import Menu
-
+from Database import Database
 #Main Application
 
-menu = Menu()
+db = Database()
+db.connecter()
+
+menu = Menu(db)
 menu.menu()

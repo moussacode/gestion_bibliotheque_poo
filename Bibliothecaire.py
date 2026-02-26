@@ -1,31 +1,77 @@
 from Adherent import Adherent
+from Livre import Livre
+from Magazine import Magazine
+
 class Bibliothecaire:
-    def __init__(self):
+    def __init__(self,db):
         self.liste_document= []
         self.liste_adherents = []
+        self.db = db
        
     def ajout_document(self,document):
-        if self.trouver_document(document.titre) is not None:
-            print("Document existe deja")
-            return False
-        
-        self.liste_document.append(document)
-        print("Document enregistre")
+        cursor = self.db.connection.cursor()
+        query = """
+        INSERT INTO documents (titre, type, auteur, theme, est_disponible)
+        VALUES (%s, %s, %s, %s, %s)
+        """
+
+        cursor.execute(query, (
+            document.titre,
+            document.type_doc,
+            document.auteur,
+            document.theme,
+            document.est_disponible
+        ))
+
+        self.db.connection.commit()
+        print("Document ajouté avec succès ")
         return True
 
-    def trouver_document(self, titre):
-        for document in self.liste_document:
-            if document.titre.lower() == titre.lower():
-                return document
-        return None
+    def trouver_document(self, id_document):
+        try :
+            cursor = self.db.connection.cursor(dictionary=True)
+            cursor.execute("SELECT * FROM documents where id_document  = %s",(id_document,))
+            row = cursor.fetchone()
+            
+            if row["type"] == "Livre":
+                doc = Livre(row["titre"], row["auteur"])
+            else:
+                doc = Magazine(row["titre"], row["theme"])
+            doc.est_disponible = row["est_disponible"]
 
-    def trouver_adherent(self, nom):
-        for adherent in self.liste_adherents:
-            if adherent.nom.lower() == nom.lower():
-                return adherent
-        return None
+            return doc
+        except Exception :
+            return None
+
+
+        
+
+        
+
+    def trouver_adherent(self, id_adherent):
+        try: 
+            cursor = self.db.connection.cursor()
+            cursor.execute(
+            "SELECT 1 FROM adherents WHERE id_adherent = %s",
+            (id_adherent,)
+        )
+            row = cursor.fetchone()
+            return row
+        except Exception :
+            return None
 
     def afficher_document(self) :
+        cursor = self.db.connection.cursor(dictionary=True)
+        cursor.execute("SELECT * FROM documents")
+        rows = cursor.fetchall()
+        for row in rows:
+            if row["type"] == "Livre":
+                doc = Livre(row["titre"], row["auteur"])
+            else:
+                doc = Magazine(row["titre"], row["theme"])
+            doc.est_disponible = row["est_disponible"]
+            doc.id_document = row["id_document"] 
+            self.liste_document.append(doc)
         if not self.liste_document:
             print("Aucun document enregistre")
             return
@@ -33,43 +79,51 @@ class Bibliothecaire:
             print(document)
 
     def afficher_adherent(self):
+        
+        cursor = self.db.connection.cursor(dictionary=True)
+        cursor.execute("SELECT * FROM adherents")
+        rows = cursor.fetchall()
+        for row in rows:
+            membre = Adherent(row["nom"])
+            self.liste_adherents.append(membre)
         if not self.liste_adherents:
             print("Aucun adherent enregistre")
             return
-        for adherent in self.liste_adherents:
-            print(adherent)
+        for document in self.liste_adherents:
+            print(document)
 
     def afficher_emprunt(self):
-        if not self.liste_adherents:
-            print("Aucun adherent enregistre")
-            return
+        cursor = self.db.connection.cursor(dictionary=True)
+        cursor.execute("select E.id_emprunt, D.id_document , D.titre ,A.nom from emprunts E Join Documents D on D.id_document = E.id_document join Adherents A On A.id_adherent = E.id_adherent where D.est_disponible= False")
+        rows = cursor.fetchall()
+        for row in rows:
+            print(f"{row['id_emprunt']} | {row['titre']} {row['nom']}")
+            
         
-        vide = True
-        for adherent in self.liste_adherents:
-            if adherent.liste_emprunts:
-                vide = False
-                titres = ", ".join([l.titre for l in adherent.liste_emprunts])
-                print(f"{adherent.nom} -> {titres}")
-        if vide:
-            print("Aucun emprunt enregistre")
        
 
     def inscrire_membre(self,nom):
-        if self.trouver_adherent(nom) is not None:
-            print("Adherent deja inscrit")
-            return False
-        membre = Adherent(nom)
-        self.liste_adherents.append(membre)
+        
+        cursor = self.db.connection.cursor()
+        query = """
+        INSERT INTO adherents (nom)
+        VALUES (%s)
+        """
+        cursor.execute(query, (
+            nom,  
+        ))
+
+        self.db.connection.commit()
         print("Adherent ajoute")
         return True
 
-    def valider_pret(self, nom_membre, titre):
-        membre = self.trouver_adherent(nom_membre)
+    def valider_pret(self, id_adherent, id_document):
+        membre = self.trouver_adherent(id_adherent)
         if membre is None:
             print("Le membre n'est pas inscrit")
             return False
 
-        document = self.trouver_document(titre)
+        document = self.trouver_document(id_document)
         if document is None:
             print("Livre introuvable")
             return False
@@ -77,33 +131,51 @@ class Bibliothecaire:
         if not document.est_disponible:
             print("Livre indisponible")
             return False
-
-        membre.emprunter(document)
-        document.marquer_emprunte()
+        
+        
+        cursor = self.db.connection.cursor()
+        query = """
+        INSERT INTO emprunts (id_adherent, id_document)
+        VALUES (%s,%s)
+        """
+        cursor.execute(query, (
+            id_adherent, id_document  
+        ))
+        cursor.execute(
+                "UPDATE documents SET est_disponible = %s WHERE id_document = %s",
+                (False, id_document)
+            )
+        self.db.connection.commit()
         print("Emprunt enregistre")
         return True
-    def recherche_document (self,titre):
-        document = self.trouver_document(titre)
+        
+    def recherche_document (self,id_document):
+        document = self.trouver_document(id_document)
         if document is None:
             print("Document introuvable")
             return False
         print(document)
         
-    def valider_retour(self, nom_membre, titre):
-        membre = self.trouver_adherent(nom_membre)
+    def valider_retour(self, id_adherent, id_document):
+        membre = self.trouver_adherent(id_adherent)
         if membre is None:
             print("Le membre n'est pas inscrit")
             return False
 
-        document = self.trouver_document(titre)
+        document = self.trouver_document(id_document)
         if document is None:
             print("Document introuvable")
             return False
 
-        if membre.retourner(document):
-            document.marquer_retourne()
-            print("Retour enregistre")
-            return True
-        print("Le membre n'a pas emprunte ce document")
-        return False
+        cursor = self.db.connection.cursor()
+        
+        cursor.execute(
+                "UPDATE documents SET est_disponible = %s WHERE id_document = %s",
+                (True, id_document)
+            )
+        self.db.connection.commit()
+        print("Retour enregistre")
+        return True
+        # print("Le membre n'a pas emprunte ce document")
+        # return False
  
